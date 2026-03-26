@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>🍱 FoodLink Smart System</title>
+<title>FoodLink Final</title>
 
 <style>
 body {
@@ -27,13 +27,17 @@ body {
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-input, select {
+input {
     display: block;
     margin: 12px auto;
     padding: 12px;
     width: 260px;
     border-radius: 8px;
     border: 1px solid #ccc;
+}
+
+.label {
+    font-weight: bold;
 }
 
 button {
@@ -45,9 +49,13 @@ button {
     border-radius: 5px;
     cursor: pointer;
 }
-button:hover { background: darkgreen; }
+button:hover {
+    background: darkgreen;
+}
 
-.hidden { display: none; }
+.hidden {
+    display: none;
+}
 
 .stats {
     display: flex;
@@ -62,6 +70,7 @@ button:hover { background: darkgreen; }
     width: 120px;
 }
 </style>
+
 </head>
 
 <body>
@@ -70,75 +79,75 @@ button:hover { background: darkgreen; }
 
 <!-- LOGIN -->
 <div id="login" class="card">
-<h3>Login</h3>
+    <h3>Login</h3>
 
-<select id="role">
-    <option value="hotel">Donor</option>
-    <option value="ngo">Receiver</option>
-</select>
+    <select id="role">
+        <option value="hotel">Hotel</option>
+        <option value="ngo">NGO</option>
+    </select>
 
-<input id="user" placeholder="Username">
-<input id="pass" type="password" placeholder="Password">
+    <input id="user" placeholder="Username">
+    <input id="pass" type="password" placeholder="Password">
 
-<button onclick="login()">Login</button>
+    <button onclick="login()">Login</button>
 </div>
 
-<!-- DONOR -->
+<!-- HOTEL -->
 <div id="hotel" class="hidden">
-<div class="card">
-<h3>Upload Food</h3>
 
-<input id="name" placeholder="Food Name">
-<input id="quantity" placeholder="Quantity">
-<input id="location" placeholder="Location">
-<input id="expiry" placeholder="Expiry (hours)">
+<div class="card">
+<h3>🍱 Upload Food</h3>
+
+<label class="label">Food Name</label>
+<input id="name">
+
+<label class="label">Quantity</label>
+<input id="quantity">
+
+<label class="label">Location</label>
+<input id="location">
+
+<label class="label">Expiry (hours)</label>
+<input id="expiry" placeholder="e.g. 2">
 
 <button onclick="addFood()">Upload</button>
 </div>
+
 </div>
 
-<!-- RECEIVER -->
+<!-- NGO -->
 <div id="ngo" class="hidden">
 
 <div class="card">
-<h3>Dashboard</h3>
+<h3>📊 Dashboard</h3>
+
 <div class="stats">
     <div class="stat-box">
         <h4 id="total">0</h4>
         <p>Total</p>
     </div>
+    <div class="stat-box">
+        <h4 id="accepted">0</h4>
+        <p>Accepted</p>
+    </div>
 </div>
 </div>
+
+<button onclick="loadFood()">Refresh</button>
 
 <div id="list"></div>
 
 <div class="card">
-<h3>Map View</h3>
+<h3>🗺️ Map View</h3>
 <iframe id="map" width="100%" height="250"></iframe>
 </div>
 
 </div>
 
-<!-- 🔥 FIREBASE SCRIPT -->
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyD0tlpfw97fCh6FFMmkAdeHA6bykkKFoq0",
-  authDomain: "foodlink-b3c3a.firebaseapp.com",
-  projectId: "foodlink-b3c3a",
-  storageBucket: "foodlink-b3c3a.appspot.com",
-  messagingSenderId: "606644876456",
-  appId: "1:606644876456:web:2dc20dd2bb15afefe07e9d"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+<script>
 
 // LOGIN
-window.login = function () {
+function login() {
     let role = document.getElementById("role").value;
 
     document.getElementById("login").classList.add("hidden");
@@ -149,78 +158,103 @@ window.login = function () {
         document.getElementById("ngo").classList.remove("hidden");
         loadFood();
     }
-};
+}
 
 // ADD FOOD
-window.addFood = async function () {
-
+function addFood() {
     let name = document.getElementById("name").value;
     let quantity = document.getElementById("quantity").value;
     let location = document.getElementById("location").value;
     let expiry = parseFloat(document.getElementById("expiry").value);
 
-    if(!name || !quantity || !location || !expiry){
-        alert("Fill all fields!");
+    if(!name || !quantity || !location || !expiry) {
+        alert("Please fill all fields!");
         return;
     }
 
-    await addDoc(collection(db, "food"), {
+    let food = {
         name,
         quantity,
         location,
         expiry: Date.now() + expiry * 60 * 60 * 1000
-    });
+    };
 
-    alert("Food Added!");
-};
+    let data = JSON.parse(localStorage.getItem("food")) || [];
+    data.push(food);
+    localStorage.setItem("food", JSON.stringify(data));
 
-// LOAD FOOD (REAL-TIME)
+    alert("Food Added Successfully! 🔔");
+
+    // Clear inputs
+    document.getElementById("name").value = "";
+    document.getElementById("quantity").value = "";
+    document.getElementById("location").value = "";
+    document.getElementById("expiry").value = "";
+}
+
+// LOAD FOOD
 function loadFood() {
+    let data = JSON.parse(localStorage.getItem("food")) || [];
+    let output = "";
+    let accepted = Number(localStorage.getItem("accepted") || 0);
 
-    onSnapshot(collection(db, "food"), (snapshot) => {
+    data.forEach((f, i) => {
+        let diff = f.expiry - Date.now();
+        let text = "";
 
-        let output = "";
-        let total = 0;
+        if(diff <= 0) {
+            text = "❌ Expired";
+        } else {
+            let hours = Math.floor(diff / (1000 * 60 * 60));
+            let minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
-        snapshot.forEach((docItem) => {
-
-            let f = docItem.data();
-            let diff = f.expiry - Date.now();
-
-            if(diff <= 0){
-                deleteDoc(doc(db, "food", docItem.id));
-                return;
+            if(diff < 3600000) {
+                text = "⚠️ Urgent: " + hours + "h " + minutes + "m";
+            } else {
+                text = hours + "h " + minutes + "m";
             }
+        }
 
-            total++;
-
-            output += `
-            <div class="card">
-                <h3>${f.name}</h3>
-                <p><b>Quantity:</b> ${f.quantity}</p>
-                <p><b>Location:</b> ${f.location}</p>
-                <button onclick="acceptFood('${docItem.id}', '${f.location}')">Accept</button>
-            </div>`;
-        });
-
-        document.getElementById("list").innerHTML = output;
-        document.getElementById("total").innerText = total;
-
+        output += `
+        <div class="card">
+            <h3>${f.name}</h3>
+            <p><b>Quantity:</b> ${f.quantity}</p>
+            <p><b>Location:</b> ${f.location}</p>
+            <p>⏳ Expires in: ${text}</p>
+            <button onclick="acceptFood(${i}, '${f.location}')">Accept</button>
+        </div>`;
     });
+
+    document.getElementById("list").innerHTML = output;
+
+    document.getElementById("total").innerText = data.length;
+    document.getElementById("accepted").innerText = accepted;
 }
 
 // ACCEPT FOOD
-window.acceptFood = async function(id, location) {
+function acceptFood(i, location) {
+    let data = JSON.parse(localStorage.getItem("food")) || [];
+    data.splice(i, 1);
+    localStorage.setItem("food", JSON.stringify(data));
 
-    await deleteDoc(doc(db, "food", id));
+    let count = Number(localStorage.getItem("accepted") || 0);
+    count++;
+    localStorage.setItem("accepted", count);
 
-    alert("Food Accepted!");
+    alert("Food Accepted! 🤝");
 
     document.getElementById("map").src =
         "https://maps.google.com/maps?q=" + location + "&output=embed";
-};
+
+    loadFood();
+}
+
+// LIVE COUNTDOWN UPDATE
+setInterval(loadFood, 1000);
 
 </script>
 
 </body>
 </html>
+    
+    
