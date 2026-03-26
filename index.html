@@ -1,73 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>FoodLink Final</title>
+<title>FoodLink</title>
 
 <style>
 body {
     font-family: Arial;
     background: linear-gradient(to right, #d4fc79, #96e6a1);
     text-align: center;
-    margin: 0;
 }
-
-.header {
-    background: green;
-    color: white;
-    padding: 15px;
-    font-size: 22px;
-}
-
 .card {
     background: white;
     padding: 20px;
     margin: 20px auto;
-    width: 320px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-input {
-    display: block;
-    margin: 12px auto;
-    padding: 12px;
-    width: 260px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-}
-
-.label {
-    font-weight: bold;
-}
-
-button {
-    padding: 10px 20px;
-    margin-top: 10px;
-    background: green;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-button:hover {
-    background: darkgreen;
-}
-
-.hidden {
-    display: none;
-}
-
-.stats {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-.stat-box {
-    background: white;
-    padding: 10px;
+    width: 300px;
     border-radius: 10px;
-    width: 120px;
+}
+input, button {
+    margin: 10px;
+    padding: 10px;
+    width: 80%;
 }
 </style>
 
@@ -75,186 +27,78 @@ button:hover {
 
 <body>
 
-<div class="header">🍱 FoodLink Smart System</div>
-
-<!-- LOGIN -->
-<div id="login" class="card">
-    <h3>Login</h3>
-
-    <select id="role">
-        <option value="hotel">Hotel</option>
-        <option value="ngo">NGO</option>
-    </select>
-
-    <input id="user" placeholder="Username">
-    <input id="pass" type="password" placeholder="Password">
-
-    <button onclick="login()">Login</button>
-</div>
-
-<!-- HOTEL -->
-<div id="hotel" class="hidden">
+<h2>🍱 FoodLink</h2>
 
 <div class="card">
-<h3>🍱 Upload Food</h3>
-
-<label class="label">Food Name</label>
-<input id="name">
-
-<label class="label">Quantity</label>
-<input id="quantity">
-
-<label class="label">Location</label>
-<input id="location">
-
-<label class="label">Expiry (hours)</label>
-<input id="expiry" placeholder="e.g. 2">
-
+<input id="name" placeholder="Food Name">
+<input id="quantity" placeholder="Quantity">
+<input id="location" placeholder="Location">
+<input id="expiry" placeholder="Expiry hours">
 <button onclick="addFood()">Upload</button>
 </div>
 
-</div>
-
-<!-- NGO -->
-<div id="ngo" class="hidden">
-
-<div class="card">
-<h3>📊 Dashboard</h3>
-
-<div class="stats">
-    <div class="stat-box">
-        <h4 id="total">0</h4>
-        <p>Total</p>
-    </div>
-    <div class="stat-box">
-        <h4 id="accepted">0</h4>
-        <p>Accepted</p>
-    </div>
-</div>
-</div>
-
-<button onclick="loadFood()">Refresh</button>
-
 <div id="list"></div>
 
-<div class="card">
-<h3>🗺️ Map View</h3>
-<iframe id="map" width="100%" height="250"></iframe>
-</div>
-
-</div>
+<!-- ✅ Firebase CDN (IMPORTANT) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyD0tlpfw97fCh6FFMmkAdeHA6bykkKFoq0",
+  authDomain: "foodlink-b3c3a.firebaseapp.com",
+  projectId: "foodlink-b3c3a",
+};
 
-// LOGIN
-function login() {
-    let role = document.getElementById("role").value;
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-    document.getElementById("login").classList.add("hidden");
-
-    if(role === "hotel") {
-        document.getElementById("hotel").classList.remove("hidden");
-    } else {
-        document.getElementById("ngo").classList.remove("hidden");
-        loadFood();
-    }
-}
-
-// ADD FOOD
 function addFood() {
     let name = document.getElementById("name").value;
     let quantity = document.getElementById("quantity").value;
     let location = document.getElementById("location").value;
     let expiry = parseFloat(document.getElementById("expiry").value);
 
-    if(!name || !quantity || !location || !expiry) {
-        alert("Please fill all fields!");
+    if(!name || !quantity || !location || !expiry){
+        alert("Fill all fields!");
         return;
     }
 
-    let food = {
+    db.collection("food").add({
         name,
         quantity,
         location,
-        expiry: Date.now() + expiry * 60 * 60 * 1000
-    };
-
-    let data = JSON.parse(localStorage.getItem("food")) || [];
-    data.push(food);
-    localStorage.setItem("food", JSON.stringify(data));
-
-    alert("Food Added Successfully! 🔔");
-
-    // Clear inputs
-    document.getElementById("name").value = "";
-    document.getElementById("quantity").value = "";
-    document.getElementById("location").value = "";
-    document.getElementById("expiry").value = "";
-}
-
-// LOAD FOOD
-function loadFood() {
-    let data = JSON.parse(localStorage.getItem("food")) || [];
-    let output = "";
-    let accepted = Number(localStorage.getItem("accepted") || 0);
-
-    data.forEach((f, i) => {
-        let diff = f.expiry - Date.now();
-        let text = "";
-
-        if(diff <= 0) {
-            text = "❌ Expired";
-        } else {
-            let hours = Math.floor(diff / (1000 * 60 * 60));
-            let minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-            if(diff < 3600000) {
-                text = "⚠️ Urgent: " + hours + "h " + minutes + "m";
-            } else {
-                text = hours + "h " + minutes + "m";
-            }
-        }
-
-        output += `
-        <div class="card">
-            <h3>${f.name}</h3>
-            <p><b>Quantity:</b> ${f.quantity}</p>
-            <p><b>Location:</b> ${f.location}</p>
-            <p>⏳ Expires in: ${text}</p>
-            <button onclick="acceptFood(${i}, '${f.location}')">Accept</button>
-        </div>`;
+        expiry: Date.now() + expiry * 3600000
     });
 
-    document.getElementById("list").innerHTML = output;
-
-    document.getElementById("total").innerText = data.length;
-    document.getElementById("accepted").innerText = accepted;
+    alert("Food Added!");
 }
 
-// ACCEPT FOOD
-function acceptFood(i, location) {
-    let data = JSON.parse(localStorage.getItem("food")) || [];
-    data.splice(i, 1);
-    localStorage.setItem("food", JSON.stringify(data));
+function loadFood() {
+    db.collection("food").onSnapshot((snapshot) => {
+        let output = "";
+        snapshot.forEach((doc) => {
+            let f = doc.data();
 
-    let count = Number(localStorage.getItem("accepted") || 0);
-    count++;
-    localStorage.setItem("accepted", count);
+            if(f.expiry < Date.now()){
+                db.collection("food").doc(doc.id).delete();
+                return;
+            }
 
-    alert("Food Accepted! 🤝");
+            output += `
+            <div class="card">
+                <h3>${f.name}</h3>
+                <p>${f.quantity}</p>
+                <p>${f.location}</p>
+            </div>`;
+        });
 
-    document.getElementById("map").src =
-        "https://maps.google.com/maps?q=" + location + "&output=embed";
-
-    loadFood();
+        document.getElementById("list").innerHTML = output;
+    });
 }
 
-// LIVE COUNTDOWN UPDATE
-setInterval(loadFood, 1000);
-
+loadFood();
 </script>
 
 </body>
 </html>
-    
-    
